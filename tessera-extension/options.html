@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Tessera Settings</title>
+<style>
+  body {
+    background: #030308;
+    color: rgba(180, 190, 210, 0.7);
+    font-family: Georgia, serif;
+    padding: 40px;
+    min-width: 400px;
+  }
+  h1 {
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: rgba(140, 160, 200, 0.6);
+    margin-bottom: 30px;
+  }
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  input[type="password"] {
+    width: 100%;
+    background: rgba(10, 12, 20, 0.7);
+    border: 1px solid rgba(100, 120, 150, 0.15);
+    border-radius: 8px;
+    color: rgba(180, 190, 210, 0.7);
+    font-family: Georgia, serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    margin-bottom: 16px;
+    box-sizing: border-box;
+  }
+  input:focus {
+    border-color: rgba(100, 120, 150, 0.3);
+  }
+  .section {
+    margin-bottom: 28px;
+  }
+  .btn-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  #save-btn {
+    background: rgba(80, 100, 140, 0.15);
+    border: 1px solid rgba(100, 120, 150, 0.25);
+    color: rgba(180, 190, 210, 0.7);
+    font-family: Georgia, serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+    padding: 8px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #save-btn:hover {
+    background: rgba(80, 100, 140, 0.25);
+    border-color: rgba(100, 120, 150, 0.4);
+    color: rgba(200, 210, 230, 0.9);
+  }
+  .saved {
+    color: rgba(100, 180, 140, 0.7);
+    font-size: 13px;
+    letter-spacing: 1px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .saved.show { opacity: 1; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: rgba(100, 120, 150, 0.2);
+    border-radius: 2px;
+    outline: none;
+    margin-bottom: 8px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(140, 160, 200, 0.5);
+    cursor: pointer;
+  }
+  .size-value {
+    font-size: 13px;
+    color: rgba(140, 160, 200, 0.5);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+  <h1>tessera</h1>
+  <div class="section">
+    <label>anthropic api key</label>
+    <input type="password" id="api-key" placeholder="sk-ant-..." />
+  </div>
+  <div class="section">
+    <label>orb size</label>
+    <input type="range" id="panel-size" min="120" max="500" value="320" />
+    <span class="size-value" id="size-label">320px</span>
+  </div>
+  <div class="btn-row">
+    <button id="save-btn">save</button>
+    <span class="saved" id="saved-msg">saved</span>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Tessera",
+  "version": "1.0.0",
+  "description": "Ambient companion for genuine contact",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://claude.ai/*", "https://api.anthropic.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["lib/three.min.js", "tessera-engine.js", "tessera-analyzer.js", "content.js"],
+      "css": ["tessera.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "icons": {
+    "48": "icons/tessera-48.png",
+    "128": "icons/tessera-128.png"
+  }
+}
