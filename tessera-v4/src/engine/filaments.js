@@ -1,0 +1,1 @@
+export class Filaments{constructor(max){this.max=max;this.count=0;}update(state){this.count=Math.floor(this.max*(0.1+state.current.tracking*.5+state.current.reception*.4+state.current.friction*.3)*state.intensity.filament);}}

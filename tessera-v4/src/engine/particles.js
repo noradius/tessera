@@ -1,0 +1,4 @@
+import {field} from './fields.js'; import {muri} from './murmuration.js';
+export class Particles{constructor(count){this.count=count;this.pos=new Float32Array(count*3);this.vel=new Float32Array(count*3);for(let i=0;i<count;i++){this.pos[i*3]=(Math.random()-.5)*13;this.pos[i*3+1]=(Math.random()-.5)*8;this.pos[i*3+2]=(Math.random()-.5)*6;}}
+update(dt,t,s){const coh=s.current.tracking*.7+s.current.place*.2;for(let i=0;i<this.count;i++){const j=i*3;let x=this.pos[j],y=this.pos[j+1];let [fx,fy]=field(x,y,t,.02*s.intensity.motion*s.intensity.global);let vx=this.vel[j]+fx+(Math.random()-.5)*.001,vy=this.vel[j+1]+fy+(Math.random()-.5)*.001;[vx,vy]=muri(vx,vy,coh);vx*=0.992;vy*=0.992;this.vel[j]=vx;this.vel[j+1]=vy;this.pos[j]=x+vx;this.pos[j+1]=y+vy; if(Math.abs(this.pos[j])>8)this.vel[j]*=-1; if(Math.abs(this.pos[j+1])>5)this.vel[j+1]*=-1;}}
+}

@@ -1,0 +1,1 @@
+export class Perf{constructor(){this.fps=0;this.avg=0;this.worst=999;this.hitches=0;this.frames=0;}tick(dt){const fps=1/Math.max(1e-6,dt);this.fps=fps;this.avg=this.avg?this.avg*.98+fps*.02:fps;this.worst=Math.min(this.worst,fps);if(dt>0.05)this.hitches++;this.frames++;}}

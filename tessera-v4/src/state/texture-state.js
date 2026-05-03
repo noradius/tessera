@@ -1,0 +1,7 @@
+import {PRESETS} from './texture-presets.js'; import {RECIPES} from './recipes.js'; import {blend} from './transition-director.js'; import {FieldMemory} from './field-memory.js';
+export class TextureState{constructor(){this.target={...PRESETS.rest};this.current={...this.target};this.confidence=1;this.recipe='Deep Water Default';this.intensity={global:1,motion:1,spectral:1,filament:1,event:1,density:1,quality:2};this.event={name:null,t:0};this.memory=new FieldMemory();}
+setTextures(t,c=1){this.target={...this.target,...t};this.confidence=c;} setPreset(n){if(PRESETS[n])this.setTextures(PRESETS[n]);}
+setRecipe(n){if(RECIPES[n]){this.recipe=n;const r=RECIPES[n];this.intensity.motion=r.motion;this.intensity.spectral=r.spectral;this.intensity.filament=r.filament;this.intensity.event=r.event;this.intensity.density=r.density;this.fog=r.fog;}}
+setIntensity(v){this.intensity.global=v;} setMotionBoldness(v){this.intensity.motion=v;} setSpectralStrength(v){this.intensity.spectral=v;} setFilamentStrength(v){this.intensity.filament=v;} setEventTheatre(v){this.intensity.event=v;} setDensity(v){this.intensity.density=v;} setQuality(v){this.intensity.quality=v;}
+triggerEvent(name){this.event={name,t:0}; if(name==='arrival')this.setPreset('arrival'); if(name==='heart_memory')this.setPreset('heart_memory');}
+ tick(dt){this.current=blend(this.current,this.target,dt); if(this.event.name)this.event.t+=dt; if(this.event.t>8)this.event={name:null,t:0}; this.memory.tick(dt,this.current.arrival,this.current.heart_memory);} getDebugState(){return this;}}
