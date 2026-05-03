@@ -5,7 +5,7 @@ if (!THREE) {
 }
 
 const CONFIG = {
-  count: 1700,
+  count: 3200,
   fieldRadius: 4.8,
   depth: 3.2,
   grid: 0.7,
@@ -32,6 +32,8 @@ export class TesseraEngine {
     this.hues = new Float32Array(this.count);
     this.phase = new Float32Array(this.count);
     this.sat = new Float32Array(this.count);
+    this.size = new Float32Array(this.count);
+    this.opacity = new Float32Array(this.count);
 
     for (let i = 0; i < this.count; i++) {
       const k = i * 3;
@@ -40,7 +42,10 @@ export class TesseraEngine {
       this.positions[k + 2] = (Math.random() - 0.5) * CONFIG.depth;
       this.hues[i] = fract(0.55 + (i / this.count) * 0.7 + (Math.random() - 0.5) * 0.11);
       this.phase[i] = Math.random();
-      this.sat[i] = 0.4 + Math.random() * 0.35;
+      this.sat[i] = 0.45 + Math.random() * 0.32;
+      const r = Math.random();
+      this.size[i] = r < 0.84 ? 0.65 + Math.random() * 0.45 : (r < 0.98 ? 1.05 + Math.random() * 0.5 : 1.65 + Math.random() * 0.25);
+      this.opacity[i] = r < 0.84 ? 0.62 + Math.random() * 0.25 : 0.45 + Math.random() * 0.2;
     }
 
     const g = new THREE.BufferGeometry();
@@ -48,22 +53,26 @@ export class TesseraEngine {
     g.setAttribute('aHue', new THREE.BufferAttribute(this.hues, 1));
     g.setAttribute('aPhase', new THREE.BufferAttribute(this.phase, 1));
     g.setAttribute('aSat', new THREE.BufferAttribute(this.sat, 1));
+    g.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1));
+    g.setAttribute('aOpacity', new THREE.BufferAttribute(this.opacity, 1));
     const m = new THREE.ShaderMaterial({
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
       uniforms: {uTime:{value:0},uEnergy:{value:0},uFog:{value:0.35},uArrivalBloom:{value:0},uHeart:{value:0},uDpr:{value:1},uViewportScale:{value:1}},
-      vertexShader: `attribute float aHue;attribute float aPhase;attribute float aSat;varying float vHue;varying float vPhase;varying float vSat;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vPhase=aPhase;vSat=aSat;vec4 mv=modelViewMatrix*vec4(position,1.0);float b1=sin(uTime*0.8+aPhase*6.2831);float b2=sin(uTime*0.23+aPhase*3.1416);float sizeJitter=0.75+fract(sin(aPhase*813.73)*43758.5453)*0.65;
-      float sizeBias=pow(sizeJitter,2.0);
-      float microScale=(0.8+uViewportScale*0.5);
-      gl_PointSize=(0.85+uEnergy*1.15)*(0.9+b1*0.06+b2*0.03)*(105.0/-mv.z)*sizeBias*microScale*uDpr;gl_Position=projectionMatrix*mv;}`,
-      fragmentShader: `varying float vHue;varying float vPhase;varying float vSat;uniform float uEnergy;uniform float uFog;uniform float uArrivalBloom;uniform float uHeart;uniform float uViewportScale;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-.5;float d=length(p);float body=exp(-d*d*(70.-uFog*24.));float halo=exp(-d*d*(22.-uFog*9.));float edge=exp(-d*d*130.);
-      float a=body*0.88+halo*0.08+edge*0.06; if(a<.012) discard; float hueShift=(sin(vPhase*6.2831)*0.03)*uEnergy + uHeart*0.04; float sat=clamp(vSat + uEnergy*0.16 + uHeart*0.2,0.2,0.95); float lit=0.2 + uEnergy*0.085 + halo*0.065 + uArrivalBloom*0.045; vec3 c=h2r(fract(vHue+hueShift),sat,lit); c += vec3(0.008,0.024,0.07)*halo*(0.82-uFog*0.35);
+      vertexShader: `attribute float aHue;attribute float aPhase;attribute float aSat;attribute float aSize;attribute float aOpacity;varying float vHue;varying float vPhase;varying float vSat;varying float vOpacity;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vPhase=aPhase;vSat=aSat;vOpacity=aOpacity;vec4 mv=modelViewMatrix*vec4(position,1.0);float b1=sin(uTime*0.8+aPhase*6.2831);float b2=sin(uTime*0.23+aPhase*3.1416);float sizeJitter=0.88+fract(sin(aPhase*813.73)*43758.5453)*0.42;
+      float sizeBias=pow(sizeJitter,1.35);
+      float depthSize = clamp(120.0 / max(1.0, -mv.z), 0.8, 2.4);
+      float microScale=(0.85+uViewportScale*0.48);
+      gl_PointSize=max(0.9,(0.95+uEnergy*0.85)*(0.92+b1*0.05+b2*0.03)*aSize*sizeBias*depthSize*microScale);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader: `varying float vHue;varying float vPhase;varying float vSat;varying float vOpacity;uniform float uEnergy;uniform float uFog;uniform float uArrivalBloom;uniform float uHeart;uniform float uViewportScale;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-.5;float d=length(p);float body=exp(-d*d*(70.-uFog*24.));float halo=exp(-d*d*(22.-uFog*9.));float edge=exp(-d*d*130.);
+      float a=body*0.86+halo*0.1+edge*0.05; if(a<.01) discard; float hueShift=(sin(vPhase*6.2831)*0.03)*uEnergy + uHeart*0.04; float sat=clamp(vSat + uEnergy*0.16 + uHeart*0.2,0.2,0.95); float lit=max(0.24,0.22 + uEnergy*0.12 + halo*0.06 + uArrivalBloom*0.05); vec3 c=h2r(fract(vHue+hueShift),sat,lit); c += vec3(0.008,0.024,0.07)*halo*(0.82-uFog*0.35);
       c = mix(c, vec3(0.86,0.9,0.98), clamp(uArrivalBloom*body*0.4,0.,0.28));
       float colorPeak=max(c.r,max(c.g,c.b));
       if(colorPeak>0.92){c*=mix(1.0,0.92/colorPeak,0.75);}
       float spectralMix=1.0-clamp((c.r+c.g+c.b-2.18)*0.45,0.,0.4);
       c*=spectralMix+0.6;
-      float baseAlpha=(0.5+uEnergy*0.16)*(0.94+uViewportScale*0.09);
-      gl_FragColor=vec4(c,a*baseAlpha);}`
+      float baseAlpha=max(0.34,(0.48+uEnergy*0.16)*(0.93+uViewportScale*0.1)*vOpacity);
+      c = max(c, vec3(0.014,0.026,0.048));
+      gl_FragColor=vec4(c,clamp(a*baseAlpha,0.0,0.92));}`
     });
     this.points = new THREE.Points(g, m); this.scene.add(this.points);
 
@@ -72,13 +81,21 @@ export class TesseraEngine {
     this.lineAlpha = new Float32Array(CONFIG.maxFilaments * 2);
     this.lineGeom.setAttribute('position', new THREE.BufferAttribute(this.linePos, 3));
     this.lineGeom.setAttribute('aLineAlpha', new THREE.BufferAttribute(this.lineAlpha, 1));
-    this.lines = new THREE.LineSegments(this.lineGeom, new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{uLineColor:{value:new THREE.Vector3(0.92,0.95,1)}},vertexShader:`attribute float aLineAlpha;varying float vLineAlpha;void main(){vLineAlpha=aLineAlpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,fragmentShader:`uniform vec3 uLineColor;varying float vLineAlpha;void main(){gl_FragColor=vec4(uLineColor,vLineAlpha*0.11);}`}));
+    this.lines = new THREE.LineSegments(this.lineGeom, new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{uLineColor:{value:new THREE.Vector3(0.92,0.95,1)}},vertexShader:`attribute float aLineAlpha;varying float vLineAlpha;void main(){vLineAlpha=aLineAlpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,fragmentShader:`uniform vec3 uLineColor;varying float vLineAlpha;void main(){gl_FragColor=vec4(uLineColor,vLineAlpha*0.08);}`}));
     this.scene.add(this.lines);
 
     this.grid = new Map();
     this.viewportScale = 1;
     this.activeCount = this.count;
-    this.resize(); window.addEventListener('resize', () => this.resize());
+        this.resize(); window.addEventListener('resize', () => this.resize());
+    this.canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      console.error('[Tessera V2] WebGL context lost');
+    });
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      console.log('[Tessera V2] WebGL context restored');
+      this.resize();
+    });
   }
 
   resize(){const w=Math.max(1,window.innerWidth),h=Math.max(1,window.innerHeight);const dpr=Math.min(window.devicePixelRatio||1,2);
@@ -90,9 +107,9 @@ export class TesseraEngine {
     if (size.x < 1 || size.y < 1) {
       throw new Error(`Renderer internal size is invalid: ${size.x}x${size.y}`);
     }
-    const areaNorm=Math.min(Math.max((w*h)/(1920*1080),0.5),1.65);
+    const areaNorm=Math.min(Math.max((w*h)/(1920*1080),0.42),1.85);
     this.viewportScale=Math.pow(areaNorm,0.5);
-    this.activeCount=Math.floor(this.count*Math.min(1.0,0.62+this.viewportScale*0.42));
+    this.activeCount=Math.floor(this.count*Math.min(1.0,0.72+this.viewportScale*0.38));
     this.points.geometry.setDrawRange(0,this.activeCount);
     this.points.material.uniforms.uDpr.value=dpr;
     this.points.material.uniforms.uViewportScale.value=this.viewportScale;
@@ -158,6 +175,42 @@ export class TesseraEngine {
       console.error('[Tessera V2] shader/renderer error', error);
       throw error;
     }
+  }
+
+  getDrawingBufferSizeString() {
+    const size = new THREE.Vector2();
+    this.renderer.getDrawingBufferSize(size);
+    return `${size.x}x${size.y}`;
+  }
+
+  getPixelRatio() {
+    return this.renderer.getPixelRatio();
+  }
+
+  getFrameDiagnostics() {
+    let sx = 0; let sy = 0; let sz = 0;
+    for (let i = 0; i < this.activeCount; i++) {
+      const k = i * 3;
+      sx += this.positions[k];
+      sy += this.positions[k + 1];
+      sz += this.positions[k + 2];
+    }
+    const n = Math.max(1, this.activeCount);
+    return {
+      avgX: sx / n,
+      avgY: sy / n,
+      avgZ: sz / n,
+      activeCount: this.activeCount,
+      uniforms: {
+        uTime: this.points.material.uniforms.uTime.value,
+        uEnergy: this.points.material.uniforms.uEnergy.value,
+        uFog: this.points.material.uniforms.uFog.value,
+        uArrivalBloom: this.points.material.uniforms.uArrivalBloom.value,
+        uHeart: this.points.material.uniforms.uHeart.value,
+        uDpr: this.points.material.uniforms.uDpr.value,
+        uViewportScale: this.points.material.uniforms.uViewportScale.value,
+      },
+    };
   }
 
   getRendererSizeString() {
