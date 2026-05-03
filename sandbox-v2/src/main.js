@@ -9,19 +9,23 @@ function boot() {
 
   const canvas = document.getElementById('tessera-canvas');
   const controls = document.getElementById('dev-controls');
-  const buttons = Array.from(document.querySelectorAll('#dev-controls button[data-preset]'));
   const hasTHREE = Boolean(window.THREE);
 
   console.log(`[Tessera V2] THREE available: ${hasTHREE}${hasTHREE ? ` revision: ${window.THREE.REVISION}` : ''}`);
   console.log(`[Tessera V2] canvas found: ${Boolean(canvas)}`);
   console.log(`[Tessera V2] controls found: ${Boolean(controls)}`);
-  console.log(`[Tessera V2] buttons found: ${buttons.length}`);
 
   const state = new TesseraState();
   let currentPreset = 'rest';
   let engine = null;
   let running = false;
   let frameCount = 0;
+
+  const monitorEl = document.createElement('div');
+  monitorEl.id = 'tessera-perf-monitor';
+  monitorEl.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9;padding:6px 8px;background:rgba(3,7,13,0.68);color:#c8d8f6;font:11px/1.35 ui-monospace,Menlo,monospace;border:1px solid rgba(110,150,220,0.34);border-radius:4px;pointer-events:none;white-space:pre;display:none;';
+  document.body.appendChild(monitorEl);
+  let monitorVisible = false;
 
   const applyPreset = (presetName) => {
     const preset = presets[presetName];
@@ -34,8 +38,8 @@ function boot() {
       const btn = controls.querySelector(`button[data-preset="${presetName}"]`);
       if (btn) btn.classList.add('is-active');
     }
+    if (engine) engine.setPreset(presetName);
     console.log(`[Tessera V2] preset selected: ${presetName}`);
-    console.log('[Tessera V2] target textures:', state.target);
   };
 
   if (controls) {
@@ -52,30 +56,40 @@ function boot() {
   try {
     console.log('[Tessera V2] engine init start');
     engine = new TesseraEngine(canvas);
-    console.log('[Tessera V2] safe renderer visible');
-    if (engine.tesseraEnabled) {
-      console.log('[Tessera V2] tessera renderer enabled');
-    }
-    console.log(`[Tessera V2] particle count: ${engine.count}`);
-    console.log(`[Tessera V2] renderer CSS size: ${engine.getRendererSizeString()}`);
-    console.log(`[Tessera V2] drawing buffer size: ${engine.getDrawingBufferSizeString()}`);
-    console.log(`[Tessera V2] pixel ratio: ${engine.getPixelRatio()}`);
+    engine.setPreset(currentPreset);
+    console.log('[Tessera V2] renderer initialized');
   } catch (error) {
     console.error('[Tessera V2] engine initialization failed; controls remain active.', error);
   }
+
+  const keyToPreset = { r: 'rest', t: 'tracking', f: 'friction', a: 'arrival', h: 'heart_memory', m: 'mixed_weather' };
+  window.addEventListener('keydown', (event) => {
+    const key = event.key.toLowerCase();
+    if (keyToPreset[key]) applyPreset(keyToPreset[key]);
+    if (key === 'p') {
+      monitorVisible = !monitorVisible;
+      monitorEl.style.display = monitorVisible ? 'block' : 'none';
+    }
+    if (key >= '1' && key <= '4' && engine) {
+      const levels = ['low', 'medium', 'high', 'ultra'];
+      engine.setQualityLevel(levels[Number(key) - 1], true);
+    }
+  });
 
   function animate() {
     if (!engine) return;
     running = true;
     frameCount += 1;
-    state.tick(1 / 60);
+    const dt = engine.beginFrame();
+    state.tick(dt);
     try {
       engine.update(state);
     } catch (error) {
       console.error('[Tessera V2] runtime renderer error', error);
     }
-    if (frameCount <= 3) {
-      console.log(`[Tessera V2] frame ${frameCount} mode=${engine.getMode()}`);
+    if (monitorVisible && frameCount % 8 === 0) {
+      const d = engine.getDebugSnapshot(currentPreset, state);
+      monitorEl.textContent = `FPS ${d.currentFps.toFixed(1)} avg ${d.averageFps.toFixed(1)}\nworst ${(d.worstFrameMs).toFixed(1)}ms hitch ${d.hitchCount}\nP ${d.particleCount} F ${d.filamentCount}\nq ${d.qualityLevel} pr ${d.pixelRatio.toFixed(2)}\nbuf ${d.drawingBufferSize}`;
     }
     requestAnimationFrame(animate);
   }
@@ -86,21 +100,12 @@ function boot() {
   }
 
   window.tesseraDebug = function tesseraDebug() {
-    return {
-      engineExists: Boolean(engine),
-      running,
-      frameCount,
-      currentPreset,
-      targetTextures: { ...state.target },
-      currentTextures: { ...state.current },
-      confidence: state.confidence,
-      rendererSize: engine ? engine.getRendererSizeString() : null,
-      drawingBufferSize: engine ? engine.getDrawingBufferSizeString() : null,
-      pixelRatio: engine ? engine.getPixelRatio() : null,
-      particleCount: engine ? engine.count : 0,
-      activeParticleCount: engine ? engine.activeCount : 0,
-      fallbackMode: engine ? engine.isFallbackMode() : true,
-    };
+    if (!engine) {
+      return { running: false, frameCount, currentPreset, fallbackMode: true };
+    }
+    const d = engine.getDebugSnapshot(currentPreset, state);
+    console.log('[Tessera V2] debug snapshot', d);
+    return d;
   };
 }
 
