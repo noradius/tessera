@@ -4,13 +4,13 @@ export const presetList = [
 ];
 export const presets = {
   rest: T({ place:0.5, aliveness:0.34, drift:0.14, response:0.16, tracking:0.08 },0.84),
-  reach: T({ reach:0.92, drift:0.36, response:0.4, aliveness:0.28 },0.76),
-  tracking: T({ tracking:0.96, place:0.42, response:0.52, reach:0.28, reception:0.24 },0.75),
-  drift: T({ drift:0.94, reception:0.24, aliveness:0.3 },0.7), folding: T({ folding:0.92, response:0.5, drift:0.42, place:0.28 },0.69),
-  reception: T({ reception:0.94, place:0.42, aliveness:0.24, tracking:0.2 },0.79), friction: T({ friction:0.98, tracking:0.58, response:0.58, drift:0.44 },0.6),
+  reach: T({ reach:1, drift:0.44, response:0.56, aliveness:0.42, mixed_weather:0.22 },0.78),
+  tracking: T({ tracking:1, place:0.5, response:0.64, reach:0.34, reception:0.3, mixed_weather:0.28 },0.76),
+  drift: T({ drift:1, reception:0.3, aliveness:0.38, folding:0.18 },0.7), folding: T({ folding:0.96, response:0.58, drift:0.5, place:0.36, tracking:0.24 },0.7),
+  reception: T({ reception:1, place:0.44, aliveness:0.28, tracking:0.26, drift:0.2 },0.8), friction: T({ friction:1, tracking:0.66, response:0.7, drift:0.5, mixed_weather:0.24 },0.58),
   inhabited_silence: T({ inhabited_silence:0.94, place:0.54, aliveness:0.18, drift:0.1 },0.86), place: T({ place:0.95, aliveness:0.28, response:0.2 },0.8),
-  aliveness: T({ aliveness:0.92, place:0.4, response:0.36, tracking:0.24 },0.75), nowness: T({ tracking:0.54, reception:0.54, drift:0.42, place:0.3 },0.73),
-  arrival: T({ arrival:0.98, response:0.72, tracking:0.5, place:0.28, reach:0.24 },0.93), heart_memory: T({ heart_memory:0.92, reception:0.58, place:0.44, drift:0.2 },0.78),
-  mixed_weather: T({ reach:0.6,tracking:0.66,drift:0.56,friction:0.54,folding:0.45,response:0.52,aliveness:0.56,reception:0.34,mixed_weather:1 },0.67),
-  low_confidence_fog: T({ drift:0.28, place:0.24, inhabited_silence:0.46, reception:0.25 },0.22),
+  aliveness: T({ aliveness:1, place:0.42, response:0.44, tracking:0.3, reach:0.24 },0.75), nowness: T({ tracking:0.58, reception:0.56, drift:0.34, place:0.44, inhabited_silence:0.3 },0.74),
+  arrival: T({ arrival:1, response:0.8, tracking:0.62, place:0.34, reach:0.34, mixed_weather:0.4 },0.95), heart_memory: T({ heart_memory:1, reception:0.66, place:0.44, drift:0.22, tracking:0.3 },0.79),
+  mixed_weather: T({ reach:0.74,tracking:0.84,drift:0.68,friction:0.68,folding:0.58,response:0.66,aliveness:0.68,reception:0.42,mixed_weather:1 },0.67),
+  low_confidence_fog: T({ drift:0.32, place:0.24, inhabited_silence:0.52, reception:0.34, folding:0.2 },0.22),
 };
