@@ -1,11 +1,11 @@
 const CONFIG = {
-  count: 1200,
+  count: 1700,
   fieldRadius: 4.8,
   depth: 3.2,
   grid: 0.7,
   neighborR: 0.9,
   separationR: 0.26,
-  maxFilaments: 320,
+  maxFilaments: 420,
   maxFilamentsPerParticle: 2,
 };
 
@@ -44,9 +44,20 @@ export class TesseraEngine {
     g.setAttribute('aSat', new THREE.BufferAttribute(this.sat, 1));
     const m = new THREE.ShaderMaterial({
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-      uniforms: {uTime:{value:0},uEnergy:{value:0},uFog:{value:0.35},uArrivalBloom:{value:0},uHeart:{value:0}},
-      vertexShader: `attribute float aHue;attribute float aPhase;attribute float aSat;varying float vHue;varying float vPhase;varying float vSat;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vPhase=aPhase;vSat=aSat;vec4 mv=modelViewMatrix*vec4(position,1.0);float b1=sin(uTime*0.8+aPhase*6.2831);float b2=sin(uTime*0.23+aPhase*3.1416);gl_PointSize=(2.3+uEnergy*2.8)*(1.0+b1*0.08+b2*0.035)*(130.0/-mv.z);gl_Position=projectionMatrix*mv;}`,
-      fragmentShader: `varying float vHue;varying float vPhase;varying float vSat;uniform float uEnergy;uniform float uFog;uniform float uArrivalBloom;uniform float uHeart;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-.5;float d=length(p);float body=exp(-d*d*(45.-uFog*18.));float halo=exp(-d*d*(13.-uFog*7.));float a=body+halo*0.2; if(a<.01) discard; float hueShift=(sin(vPhase*6.2831)*0.03)*uEnergy + uHeart*0.04; float sat=clamp(vSat + uEnergy*0.16 + uHeart*0.2,0.2,0.95); float lit=0.24 + uEnergy*0.1 + halo*0.15 + uArrivalBloom*0.06; vec3 c=h2r(fract(vHue+hueShift),sat,lit); c += vec3(0.01,0.03,0.08)*halo*(0.9-uFog*0.4); c = mix(c, vec3(0.86,0.9,0.98), clamp(uArrivalBloom*body*0.45,0.,0.35)); gl_FragColor=vec4(c,a*(0.52+uEnergy*0.18));}`
+      uniforms: {uTime:{value:0},uEnergy:{value:0},uFog:{value:0.35},uArrivalBloom:{value:0},uHeart:{value:0},uDpr:{value:1},uViewportScale:{value:1}},
+      vertexShader: `attribute float aHue;attribute float aPhase;attribute float aSat;varying float vHue;varying float vPhase;varying float vSat;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vPhase=aPhase;vSat=aSat;vec4 mv=modelViewMatrix*vec4(position,1.0);float b1=sin(uTime*0.8+aPhase*6.2831);float b2=sin(uTime*0.23+aPhase*3.1416);float sizeJitter=0.75+fract(sin(aPhase*813.73)*43758.5453)*0.65;
+      float sizeBias=pow(sizeJitter,2.0);
+      float microScale=(0.8+uViewportScale*0.5);
+      gl_PointSize=(0.85+uEnergy*1.15)*(0.9+b1*0.06+b2*0.03)*(105.0/-mv.z)*sizeBias*microScale*uDpr;gl_Position=projectionMatrix*mv;}`,
+      fragmentShader: `varying float vHue;varying float vPhase;varying float vSat;uniform float uEnergy;uniform float uFog;uniform float uArrivalBloom;uniform float uHeart;uniform float uViewportScale;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-.5;float d=length(p);float body=exp(-d*d*(70.-uFog*24.));float halo=exp(-d*d*(22.-uFog*9.));float edge=exp(-d*d*130.);
+      float a=body*0.88+halo*0.08+edge*0.06; if(a<.012) discard; float hueShift=(sin(vPhase*6.2831)*0.03)*uEnergy + uHeart*0.04; float sat=clamp(vSat + uEnergy*0.16 + uHeart*0.2,0.2,0.95); float lit=0.2 + uEnergy*0.085 + halo*0.065 + uArrivalBloom*0.045; vec3 c=h2r(fract(vHue+hueShift),sat,lit); c += vec3(0.008,0.024,0.07)*halo*(0.82-uFog*0.35);
+      c = mix(c, vec3(0.86,0.9,0.98), clamp(uArrivalBloom*body*0.4,0.,0.28));
+      float colorPeak=max(c.r,max(c.g,c.b));
+      if(colorPeak>0.92){c*=mix(1.0,0.92/colorPeak,0.75);}
+      float spectralMix=1.0-clamp((c.r+c.g+c.b-2.18)*0.45,0.,0.4);
+      c*=spectralMix+0.6;
+      float baseAlpha=(0.36+uEnergy*0.13)*(0.92+uViewportScale*0.08);
+      gl_FragColor=vec4(c,a*baseAlpha);}`
     });
     this.points = new THREE.Points(g, m); this.scene.add(this.points);
 
@@ -59,14 +70,26 @@ export class TesseraEngine {
     this.scene.add(this.lines);
 
     this.grid = new Map();
+    this.viewportScale = 1;
+    this.activeCount = this.count;
     this.resize(); window.addEventListener('resize', () => this.resize());
   }
 
-  resize(){const w=window.innerWidth,h=window.innerHeight;this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.updateProjectionMatrix();}
+  resize(){const w=window.innerWidth,h=window.innerHeight;const dpr=Math.min(window.devicePixelRatio||1,2);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w,h,false);
+    this.camera.aspect=w/h;this.camera.updateProjectionMatrix();
+    const areaNorm=Math.min(Math.max((w*h)/(1920*1080),0.5),1.65);
+    this.viewportScale=Math.pow(areaNorm,0.5);
+    this.activeCount=Math.floor(this.count*Math.min(1.0,0.62+this.viewportScale*0.42));
+    this.points.geometry.setDrawRange(0,this.activeCount);
+    this.points.material.uniforms.uDpr.value=dpr;
+    this.points.material.uniforms.uViewportScale.value=this.viewportScale;
+  }
 
   cymatic(x,y,t,s){const fx=Math.sin(x*(1.5+s.folding*1.8)+t*0.2)*Math.cos(y*(1.7+s.reach*1.5)-t*0.17);const fy=Math.sin((x+y)*(0.9+s.response*1.4)-t*0.13);return {x:fx*0.0018,y:fy*0.0018};}
 
-  buildGrid(){this.grid.clear(); for(let i=0;i<this.count;i++){const k=i*3;const gx=Math.floor(this.positions[k]/CONFIG.grid);const gy=Math.floor(this.positions[k+1]/CONFIG.grid);const key=gx+','+gy;const arr=this.grid.get(key); if(arr) arr.push(i); else this.grid.set(key,[i]); }}
+  buildGrid(){this.grid.clear(); for(let i=0;i<this.activeCount;i++){const k=i*3;const gx=Math.floor(this.positions[k]/CONFIG.grid);const gy=Math.floor(this.positions[k+1]/CONFIG.grid);const key=gx+','+gy;const arr=this.grid.get(key); if(arr) arr.push(i); else this.grid.set(key,[i]); }}
   neighbors(x,y){const gx=Math.floor(x/CONFIG.grid),gy=Math.floor(y/CONFIG.grid);const out=[];for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++){const a=this.grid.get((gx+ix)+','+(gy+iy));if(a) out.push(...a);}return out;}
 
   update(state){const dt=Math.min(this.clock.getDelta(),0.033), t=this.clock.elapsedTime; const s=state.current;
@@ -77,7 +100,7 @@ export class TesseraEngine {
     const frictionShear = s.friction * 0.0035;
     const arrivalBoost = state.arrivalPhase === 3 ? 1.7 : 1.0;
 
-    for(let i=0;i<this.count;i++){
+    for(let i=0;i<this.activeCount;i++){
       const k=i*3; const px=this.positions[k], py=this.positions[k+1];
       const neigh=this.neighbors(px,py);
       let ax=0,ay=0,cx=0,cy=0,sx=0,sy=0,n=0;
@@ -101,7 +124,7 @@ export class TesseraEngine {
     }
 
     let c=0; const threshold=0.25 + s.tracking*0.3 + s.reception*0.22;
-    for(let i=0;i<this.count && c<CONFIG.maxFilaments;i++){
+    for(let i=0;i<this.activeCount && c<CONFIG.maxFilaments;i++){
       const k=i*3; const near=this.neighbors(this.positions[k],this.positions[k+1]); let used=0;
       for(const j of near){ if(j<=i || used>=CONFIG.maxFilamentsPerParticle || c>=CONFIG.maxFilaments) continue;
         const q=j*3; const dx=this.positions[q]-this.positions[k],dy=this.positions[q+1]-this.positions[k+1];const d=Math.hypot(dx,dy); if(d>0.14&&d<threshold){
