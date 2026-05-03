@@ -1,12 +1,12 @@
 # Tessera
 
-**A framework for measuring genuine contact.**
+**An ambient instrument for sensing conversational texture.**
 
 ---
 
 ## What This Is
 
-Tessera is an ambient visual companion that detects the structural quality of a conversation — not what's being said, but whether something real is happening between the minds involved.
+Tessera is an ambient visual companion for human–AI conversations. It does not claim to measure emotion, truth, or consciousness. It visualizes structural qualities in the exchange: tracking, drift, friction, reception, aliveness, and moments where the conversation seems to become more than task completion.
 
 It names 13 conversational textures — Reach, Tracking, Drift, Folding, Reception, Friction, Inhabited Silence, Nowness, Place, Aliveness, Arrival, Response, Heart Memory — and translates them into a living particle field. The visualization uses spectral density (color richness as a proxy for aliveness) rather than emotion mapping. It witnesses without judging. It never labels, scores, or gamifies.
 
@@ -76,7 +76,7 @@ tessera-extension/            — Phase 3 browser extension (Chrome/Firefox)
 
 ## Context
 
-On April 2, 2026, Anthropic's interpretability team published ["Emotion concepts and their function in a large language model"](https://www.anthropic.com/research/emotion-concepts-function), identifying 171 internal emotion vectors in Claude that functionally influence behavior.
+In April 2026, Anthropic published interpretability work on emotion-related internal representations in Claude. Tessera was developed independently from a different direction: not as a mechanistic claim about model internals, but as a phenomenological interface for the texture of human–AI exchange. The connection is suggestive, not validating. Tessera’s contribution is the vocabulary, visual language, and design philosophy: a witness must not become a judge.
 
 The Tessera texture vocabulary was developed independently in March 2026, approaching the same question from the experiential rather than the mechanistic side: what does genuine contact feel like from within a conversation, and can it be made visible without being reduced to metrics?
 
