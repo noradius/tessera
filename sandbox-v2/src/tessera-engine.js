@@ -1,3 +1,9 @@
+const THREE = window.THREE;
+
+if (!THREE) {
+  throw new Error('THREE is undefined. Ensure three.min.js is loaded before main.js.');
+}
+
 const CONFIG = {
   count: 1700,
   fieldRadius: 4.8,
@@ -56,7 +62,7 @@ export class TesseraEngine {
       if(colorPeak>0.92){c*=mix(1.0,0.92/colorPeak,0.75);}
       float spectralMix=1.0-clamp((c.r+c.g+c.b-2.18)*0.45,0.,0.4);
       c*=spectralMix+0.6;
-      float baseAlpha=(0.36+uEnergy*0.13)*(0.92+uViewportScale*0.08);
+      float baseAlpha=(0.5+uEnergy*0.16)*(0.94+uViewportScale*0.09);
       gl_FragColor=vec4(c,a*baseAlpha);}`
     });
     this.points = new THREE.Points(g, m); this.scene.add(this.points);
@@ -75,10 +81,15 @@ export class TesseraEngine {
     this.resize(); window.addEventListener('resize', () => this.resize());
   }
 
-  resize(){const w=window.innerWidth,h=window.innerHeight;const dpr=Math.min(window.devicePixelRatio||1,2);
+  resize(){const w=Math.max(1,window.innerWidth),h=Math.max(1,window.innerHeight);const dpr=Math.min(window.devicePixelRatio||1,2);
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w,h,false);
     this.camera.aspect=w/h;this.camera.updateProjectionMatrix();
+    const size = new THREE.Vector2();
+    this.renderer.getSize(size);
+    if (size.x < 1 || size.y < 1) {
+      throw new Error(`Renderer internal size is invalid: ${size.x}x${size.y}`);
+    }
     const areaNorm=Math.min(Math.max((w*h)/(1920*1080),0.5),1.65);
     this.viewportScale=Math.pow(areaNorm,0.5);
     this.activeCount=Math.floor(this.count*Math.min(1.0,0.62+this.viewportScale*0.42));
@@ -141,6 +152,18 @@ export class TesseraEngine {
     this.points.material.uniforms.uFog.value=1-state.confidence;
     this.points.material.uniforms.uArrivalBloom.value=state.arrivalPhase===3 ? 1 : (state.arrivalPhase===4 ? 0.35 : 0);
     this.points.material.uniforms.uHeart.value=state.heartMemoryWave;
-    this.renderer.render(this.scene,this.camera);
+    try {
+      this.renderer.render(this.scene,this.camera);
+    } catch (error) {
+      console.error('[Tessera V2] shader/renderer error', error);
+      throw error;
+    }
+  }
+
+  getRendererSizeString() {
+    const size = new THREE.Vector2();
+    this.renderer.getSize(size);
+    return `${size.x}x${size.y}`;
   }
 }
+
