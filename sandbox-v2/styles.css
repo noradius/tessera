@@ -1,0 +1,46 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(120% 120% at 50% 50%, #060d1c 0%, #02060f 40%, #000106 100%);
+  overflow: hidden;
+  color: #cfd6e2;
+  font-family: Inter, system-ui, sans-serif;
+}
+#field-shell {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+#tessera-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#field-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+}
+#dev-controls {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: min(760px, 92vw);
+  opacity: 0.35;
+  transition: opacity 200ms ease;
+}
+#dev-controls:hover { opacity: 0.9; }
+#dev-controls button {
+  background: rgba(12, 18, 32, 0.55);
+  border: 1px solid rgba(190, 210, 255, 0.2);
+  color: #dce7ff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
