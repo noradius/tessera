@@ -1,0 +1,9 @@
+html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#02040a; color:#d6e2ff; font-family: Inter, system-ui, sans-serif; }
+#tessera-canvas{position:fixed; inset:0; width:100%; height:100%; display:block;}
+.vignette{position:fixed; inset:0; pointer-events:none; background:radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,.45) 100%);}
+.dev-controls{position:fixed; top:8px; left:8px; z-index:3; background:rgba(7,11,20,.75); border:1px solid rgba(134,168,255,.22); border-radius:8px; padding:8px; max-width:360px; backdrop-filter: blur(4px);}
+.dev-controls.min{height:28px; overflow:hidden}
+.dev-controls button,.dev-controls select,.dev-controls input{margin:2px; font-size:11px;}
+.dev-controls .row{display:flex; flex-wrap:wrap; align-items:center;}
+.perf{position:fixed; right:8px; top:8px; z-index:4; margin:0; padding:8px; background:rgba(0,0,0,.5); color:#bde8ff; font-size:11px; border:1px solid rgba(120,180,255,.35)}
+.hidden{display:none}

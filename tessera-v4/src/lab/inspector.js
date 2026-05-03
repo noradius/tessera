@@ -1,0 +1,1 @@
+export const drawPerf=(el,d)=>{el.textContent=`FPS ${d.FPS.toFixed(1)} avg ${d.averageFPS.toFixed(1)}\nworst ${d.worstFrame.toFixed(1)} hitches ${d.hitchCount}\nparticles ${d.particleCount} filaments ${d.filamentCount}\nquality ${d.qualityLevel} event ${d.activeEventTimeline||'-'}`;};

@@ -1,0 +1,1 @@
+export function createRenderer(canvas){const r=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});r.setClearColor(0x02040a,1);r.setPixelRatio(Math.min(devicePixelRatio||1,2));r.setSize(innerWidth,innerHeight,false);return r;}
