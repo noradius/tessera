@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tessera V2 Sandbox</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="field-shell">
+    <canvas id="tessera-canvas"></canvas>
+    <div id="dev-controls" aria-label="Developer presets">
+      <button data-preset="rest">Rest</button>
+      <button data-preset="reach">Reach</button>
+      <button data-preset="tracking">Tracking</button>
+      <button data-preset="drift">Drift</button>
+      <button data-preset="folding">Folding</button>
+      <button data-preset="reception">Reception</button>
+      <button data-preset="friction">Friction</button>
+      <button data-preset="inhabited_silence">Inhabited Silence</button>
+      <button data-preset="place">Place</button>
+      <button data-preset="aliveness">Aliveness</button>
+      <button data-preset="nowness">Nowness</button>
+      <button data-preset="arrival">Arrival</button>
+      <button data-preset="heart_memory">Heart Memory</button>
+      <button data-preset="mixed_weather">Mixed Weather</button>
+      <button data-preset="low_confidence_fog">Low Confidence / Fog</button>
+    </div>
+  </div>
+
+  <script src="../tessera-extension/lib/three.min.js"></script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
