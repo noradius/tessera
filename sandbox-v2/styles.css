@@ -2,28 +2,36 @@ html, body {
   margin: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(120% 120% at 50% 50%, #060d1c 0%, #02060f 40%, #000106 100%);
+  background: radial-gradient(120% 120% at 50% 50%, #071024 0%, #030915 40%, #01040a 100%);
   overflow: hidden;
   color: #cfd6e2;
   font-family: Inter, system-ui, sans-serif;
 }
+
 #field-shell {
   width: 100%;
   height: 100%;
   position: relative;
 }
+
 #tessera-canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  z-index: 1;
 }
+
 #field-shell::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  z-index: 2;
+  background: radial-gradient(circle at 50% 50%, transparent 53%, rgba(0, 0, 0, 0.52) 100%);
 }
+
 #dev-controls {
   position: absolute;
   left: 12px;
@@ -31,21 +39,27 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-width: min(760px, 92vw);
-  opacity: 0.35;
-  transition: opacity 200ms ease;
+  max-width: min(780px, 92vw);
+  z-index: 10;
+  pointer-events: auto;
+  opacity: 0.62;
+  transition: opacity 180ms ease;
 }
-#dev-controls:hover { opacity: 0.9; }
+#dev-controls:hover { opacity: 1; }
+
 #dev-controls button {
-  background: rgba(12, 18, 32, 0.55);
-  border: 1px solid rgba(190, 210, 255, 0.2);
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgba(12, 18, 32, 0.66);
+  border: 1px solid rgba(190, 210, 255, 0.34);
   color: #dce7ff;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 11px;
 }
 
-#tessera-canvas { position: absolute; inset: 0; z-index: 0; }
-#field-shell::after { z-index: 1; }
-#dev-controls { z-index: 3; pointer-events: auto; }
-#dev-controls button { pointer-events: auto; cursor: pointer; }
+#dev-controls button.is-active {
+  border-color: rgba(142, 191, 255, 0.96);
+  box-shadow: 0 0 0 1px rgba(142, 191, 255, 0.3) inset;
+  background: rgba(18, 34, 62, 0.88);
+}

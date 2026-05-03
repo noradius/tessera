@@ -1,222 +1,200 @@
 const THREE = window.THREE;
+if (!THREE) throw new Error('THREE is unavailable.');
 
-if (!THREE) {
-  throw new Error('THREE is undefined. Ensure three.min.js is loaded before main.js.');
-}
-
-const CONFIG = {
-  count: 3200,
-  fieldRadius: 4.8,
-  depth: 3.2,
-  grid: 0.7,
-  neighborR: 0.9,
-  separationR: 0.26,
-  maxFilaments: 420,
-  maxFilamentsPerParticle: 2,
-};
-
-function fract(x) { return x - Math.floor(x); }
+const CONFIG = { count: 3200, maxFilaments: 360 };
 
 export class TesseraEngine {
   constructor(canvas) {
+    if (!canvas) throw new Error('Missing canvas element.');
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-    this.camera.position.z = 9;
     this.clock = new THREE.Clock();
-
     this.count = CONFIG.count;
-    this.positions = new Float32Array(this.count * 3);
-    this.vel = new Float32Array(this.count * 3);
-    this.hues = new Float32Array(this.count);
-    this.phase = new Float32Array(this.count);
-    this.sat = new Float32Array(this.count);
-    this.size = new Float32Array(this.count);
-    this.opacity = new Float32Array(this.count);
+    this.activeCount = this.count;
+    this.fallbackMode = false;
+    this.tesseraEnabled = false;
 
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer.setClearColor(0x000000, 0);
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 100);
+    this.camera.position.z = 8;
+
+    this.positions = new Float32Array(this.count * 3);
+    this.base = new Float32Array(this.count * 3);
+    this.hues = new Float32Array(this.count);
+    this.sizes = new Float32Array(this.count);
+    this.opacity = new Float32Array(this.count);
+    this.phase = new Float32Array(this.count);
+
+    this.#seedParticles();
+    this.#buildPoints();
+    this.#buildFilaments();
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+
+    this.#enableSafeMode();
+    this.#tryEnableTesseraMode();
+  }
+
+  #seedParticles() {
     for (let i = 0; i < this.count; i++) {
       const k = i * 3;
-      this.positions[k] = (Math.random() - 0.5) * 8;
-      this.positions[k + 1] = (Math.random() - 0.5) * 8;
-      this.positions[k + 2] = (Math.random() - 0.5) * CONFIG.depth;
-      this.hues[i] = fract(0.55 + (i / this.count) * 0.7 + (Math.random() - 0.5) * 0.11);
-      this.phase[i] = Math.random();
-      this.sat[i] = 0.45 + Math.random() * 0.32;
-      const r = Math.random();
-      this.size[i] = r < 0.84 ? 0.65 + Math.random() * 0.45 : (r < 0.98 ? 1.05 + Math.random() * 0.5 : 1.65 + Math.random() * 0.25);
-      this.opacity[i] = r < 0.84 ? 0.62 + Math.random() * 0.25 : 0.45 + Math.random() * 0.2;
+      const r = Math.pow(Math.random(), 0.65) * 4.5;
+      const a = Math.random() * Math.PI * 2;
+      this.base[k] = Math.cos(a) * r;
+      this.base[k + 1] = Math.sin(a) * r;
+      this.base[k + 2] = (Math.random() - 0.5) * 3.1;
+      this.positions[k] = this.base[k];
+      this.positions[k + 1] = this.base[k + 1];
+      this.positions[k + 2] = this.base[k + 2];
+      this.hues[i] = 0.54 + (Math.random() - 0.5) * 0.18;
+      this.phase[i] = Math.random() * Math.PI * 2;
+      this.sizes[i] = 0.85 + Math.random() * 1.15;
+      this.opacity[i] = 0.35 + Math.random() * 0.5;
     }
+  }
 
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
-    g.setAttribute('aHue', new THREE.BufferAttribute(this.hues, 1));
-    g.setAttribute('aPhase', new THREE.BufferAttribute(this.phase, 1));
-    g.setAttribute('aSat', new THREE.BufferAttribute(this.sat, 1));
-    g.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1));
-    g.setAttribute('aOpacity', new THREE.BufferAttribute(this.opacity, 1));
-    const m = new THREE.ShaderMaterial({
-      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-      uniforms: {uTime:{value:0},uEnergy:{value:0},uFog:{value:0.35},uArrivalBloom:{value:0},uHeart:{value:0},uDpr:{value:1},uViewportScale:{value:1}},
-      vertexShader: `attribute float aHue;attribute float aPhase;attribute float aSat;attribute float aSize;attribute float aOpacity;varying float vHue;varying float vPhase;varying float vSat;varying float vOpacity;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vPhase=aPhase;vSat=aSat;vOpacity=aOpacity;vec4 mv=modelViewMatrix*vec4(position,1.0);float b1=sin(uTime*0.8+aPhase*6.2831);float b2=sin(uTime*0.23+aPhase*3.1416);float sizeJitter=0.88+fract(sin(aPhase*813.73)*43758.5453)*0.42;
-      float sizeBias=pow(sizeJitter,1.35);
-      float depthSize = clamp(120.0 / max(1.0, -mv.z), 0.8, 2.4);
-      float microScale=(0.85+uViewportScale*0.48);
-      gl_PointSize=max(0.9,(0.95+uEnergy*0.85)*(0.92+b1*0.05+b2*0.03)*aSize*sizeBias*depthSize*microScale);gl_Position=projectionMatrix*mv;}`,
-      fragmentShader: `varying float vHue;varying float vPhase;varying float vSat;varying float vOpacity;uniform float uEnergy;uniform float uFog;uniform float uArrivalBloom;uniform float uHeart;uniform float uViewportScale;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-.5;float d=length(p);float body=exp(-d*d*(70.-uFog*24.));float halo=exp(-d*d*(22.-uFog*9.));float edge=exp(-d*d*130.);
-      float a=body*0.86+halo*0.1+edge*0.05; if(a<.01) discard; float hueShift=(sin(vPhase*6.2831)*0.03)*uEnergy + uHeart*0.04; float sat=clamp(vSat + uEnergy*0.16 + uHeart*0.2,0.2,0.95); float lit=max(0.24,0.22 + uEnergy*0.12 + halo*0.06 + uArrivalBloom*0.05); vec3 c=h2r(fract(vHue+hueShift),sat,lit); c += vec3(0.008,0.024,0.07)*halo*(0.82-uFog*0.35);
-      c = mix(c, vec3(0.86,0.9,0.98), clamp(uArrivalBloom*body*0.4,0.,0.28));
-      float colorPeak=max(c.r,max(c.g,c.b));
-      if(colorPeak>0.92){c*=mix(1.0,0.92/colorPeak,0.75);}
-      float spectralMix=1.0-clamp((c.r+c.g+c.b-2.18)*0.45,0.,0.4);
-      c*=spectralMix+0.6;
-      float baseAlpha=max(0.34,(0.48+uEnergy*0.16)*(0.93+uViewportScale*0.1)*vOpacity);
-      c = max(c, vec3(0.014,0.026,0.048));
-      gl_FragColor=vec4(c,clamp(a*baseAlpha,0.0,0.92));}`
+  #buildPoints() {
+    this.pointsGeometry = new THREE.BufferGeometry();
+    this.pointsGeometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    this.pointsGeometry.setAttribute('aHue', new THREE.BufferAttribute(this.hues, 1));
+    this.pointsGeometry.setAttribute('aSize', new THREE.BufferAttribute(this.sizes, 1));
+    this.pointsGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(this.opacity, 1));
+    this.pointsGeometry.setAttribute('aPhase', new THREE.BufferAttribute(this.phase, 1));
+
+    this.safeMaterial = new THREE.PointsMaterial({
+      size: 0.055,
+      transparent: true,
+      opacity: 0.72,
+      color: new THREE.Color('#7ba7ff'),
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
     });
-    this.points = new THREE.Points(g, m); this.scene.add(this.points);
 
-    this.lineGeom = new THREE.BufferGeometry();
+    this.tesseraMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 }, uEnergy: { value: 0.28 }, uFog: { value: 0.25 }, uArrival: { value: 0 }, uHeart: { value: 0 },
+      },
+      vertexShader: `attribute float aHue;attribute float aSize;attribute float aOpacity;attribute float aPhase;varying float vHue;varying float vAlpha;varying float vPhase;uniform float uTime;uniform float uEnergy;void main(){vHue=aHue;vAlpha=aOpacity;vPhase=aPhase;vec3 p=position;float mur=sin(uTime*0.45+aPhase)*0.08+cos(uTime*0.25+aPhase*0.6)*0.07; p.xy*=1.0+mur*uEnergy;vec4 mv=modelViewMatrix*vec4(p,1.0);float depthScale=clamp(80.0/max(1.0,-mv.z),0.9,2.6);gl_PointSize=max(1.2,aSize*(1.05+uEnergy*0.8)*depthScale);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader: `varying float vHue;varying float vAlpha;varying float vPhase;uniform float uEnergy;uniform float uFog;uniform float uArrival;uniform float uHeart;vec3 h2r(float h,float s,float l){float c=(1.-abs(2.*l-1.))*s;float x=c*(1.-abs(mod(h*6.,2.)-1.));float m=l-c*.5;vec3 r;if(h<1./6.)r=vec3(c,x,0.);else if(h<2./6.)r=vec3(x,c,0.);else if(h<3./6.)r=vec3(0.,c,x);else if(h<4./6.)r=vec3(0.,x,c);else if(h<5./6.)r=vec3(x,0.,c);else r=vec3(c,0.,x);return r+m;}void main(){vec2 p=gl_PointCoord-0.5;float d=length(p);float core=exp(-d*d*58.0);float halo=exp(-d*d*19.0);float a=(core*0.82+halo*0.22)*max(0.28,vAlpha);if(a<0.02) discard;float h=vHue+sin(vPhase)*uEnergy*0.03+uHeart*0.05;float sat=0.48+uEnergy*0.2;float lit=0.3+uEnergy*0.09+uArrival*0.06;vec3 col=h2r(fract(h),sat,lit);col += vec3(0.01,0.03,0.08)*halo*(1.0-uFog*0.6);col = mix(col, vec3(0.9,0.93,0.98), min(0.25,uArrival*core*0.4));float peak=max(col.r,max(col.g,col.b));if(peak>0.92) col*=mix(1.0,0.92/peak,0.8);gl_FragColor=vec4(col,min(0.92,a));}`,
+    });
+
+    this.points = new THREE.Points(this.pointsGeometry, this.safeMaterial);
+    this.scene.add(this.points);
+  }
+
+  #buildFilaments() {
     this.linePos = new Float32Array(CONFIG.maxFilaments * 6);
     this.lineAlpha = new Float32Array(CONFIG.maxFilaments * 2);
-    this.lineGeom.setAttribute('position', new THREE.BufferAttribute(this.linePos, 3));
-    this.lineGeom.setAttribute('aLineAlpha', new THREE.BufferAttribute(this.lineAlpha, 1));
-    this.lines = new THREE.LineSegments(this.lineGeom, new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{uLineColor:{value:new THREE.Vector3(0.92,0.95,1)}},vertexShader:`attribute float aLineAlpha;varying float vLineAlpha;void main(){vLineAlpha=aLineAlpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,fragmentShader:`uniform vec3 uLineColor;varying float vLineAlpha;void main(){gl_FragColor=vec4(uLineColor,vLineAlpha*0.08);}`}));
+    this.lineGeometry = new THREE.BufferGeometry();
+    this.lineGeometry.setAttribute('position', new THREE.BufferAttribute(this.linePos, 3));
+    this.lineGeometry.setAttribute('aLineAlpha', new THREE.BufferAttribute(this.lineAlpha, 1));
+    this.lineMaterial = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { uLineColor: { value: new THREE.Vector3(0.9, 0.96, 1.0) } },
+      vertexShader: `attribute float aLineAlpha;varying float vA;void main(){vA=aLineAlpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader: `uniform vec3 uLineColor;varying float vA;void main(){gl_FragColor=vec4(uLineColor,vA*0.1);}`,
+    });
+    this.lines = new THREE.LineSegments(this.lineGeometry, this.lineMaterial);
     this.scene.add(this.lines);
-
-    this.grid = new Map();
-    this.viewportScale = 1;
-    this.activeCount = this.count;
-        this.resize(); window.addEventListener('resize', () => this.resize());
-    this.canvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
-      console.error('[Tessera V2] WebGL context lost');
-    });
-    this.canvas.addEventListener('webglcontextrestored', () => {
-      console.log('[Tessera V2] WebGL context restored');
-      this.resize();
-    });
   }
 
-  resize(){const w=Math.max(1,window.innerWidth),h=Math.max(1,window.innerHeight);const dpr=Math.min(window.devicePixelRatio||1,2);
-    this.renderer.setPixelRatio(dpr);
-    this.renderer.setSize(w,h,false);
-    this.camera.aspect=w/h;this.camera.updateProjectionMatrix();
-    const size = new THREE.Vector2();
-    this.renderer.getSize(size);
-    if (size.x < 1 || size.y < 1) {
-      throw new Error(`Renderer internal size is invalid: ${size.x}x${size.y}`);
-    }
-    const areaNorm=Math.min(Math.max((w*h)/(1920*1080),0.42),1.85);
-    this.viewportScale=Math.pow(areaNorm,0.5);
-    this.activeCount=Math.floor(this.count*Math.min(1.0,0.72+this.viewportScale*0.38));
-    this.points.geometry.setDrawRange(0,this.activeCount);
-    this.points.material.uniforms.uDpr.value=dpr;
-    this.points.material.uniforms.uViewportScale.value=this.viewportScale;
+  #enableSafeMode() {
+    this.fallbackMode = true;
+    this.points.material = this.safeMaterial;
   }
 
-  cymatic(x,y,t,s){const fx=Math.sin(x*(1.5+s.folding*1.8)+t*0.2)*Math.cos(y*(1.7+s.reach*1.5)-t*0.17);const fy=Math.sin((x+y)*(0.9+s.response*1.4)-t*0.13);return {x:fx*0.0018,y:fy*0.0018};}
-
-  buildGrid(){this.grid.clear(); for(let i=0;i<this.activeCount;i++){const k=i*3;const gx=Math.floor(this.positions[k]/CONFIG.grid);const gy=Math.floor(this.positions[k+1]/CONFIG.grid);const key=gx+','+gy;const arr=this.grid.get(key); if(arr) arr.push(i); else this.grid.set(key,[i]); }}
-  neighbors(x,y){const gx=Math.floor(x/CONFIG.grid),gy=Math.floor(y/CONFIG.grid);const out=[];for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++){const a=this.grid.get((gx+ix)+','+(gy+iy));if(a) out.push(...a);}return out;}
-
-  update(state){const dt=Math.min(this.clock.getDelta(),0.033), t=this.clock.elapsedTime; const s=state.current;
-    const energy = s.reach*0.34+s.tracking*0.35+s.reception*0.3+s.response*0.2+s.aliveness*0.15;
-    this.buildGrid();
-
-    const silenceDrag = 0.985 - s.inhabited_silence * 0.08;
-    const frictionShear = s.friction * 0.0035;
-    const arrivalBoost = state.arrivalPhase === 3 ? 1.7 : 1.0;
-
-    for(let i=0;i<this.activeCount;i++){
-      const k=i*3; const px=this.positions[k], py=this.positions[k+1];
-      const neigh=this.neighbors(px,py);
-      let ax=0,ay=0,cx=0,cy=0,sx=0,sy=0,n=0;
-      for (const j of neigh){ if(j===i) continue; const q=j*3;const dx=this.positions[q]-px,dy=this.positions[q+1]-py;const d2=dx*dx+dy*dy; if(d2<CONFIG.neighborR*CONFIG.neighborR){n++;ax+=this.vel[q];ay+=this.vel[q+1];cx+=this.positions[q];cy+=this.positions[q+1]; if(d2<CONFIG.separationR*CONFIG.separationR){sx-=dx/(d2+0.01);sy-=dy/(d2+0.01);} } }
-      if(n>0){ ax=(ax/n-this.vel[k])*0.0012; ay=(ay/n-this.vel[k+1])*0.0012; cx=((cx/n)-px)*0.0008*(0.4+s.tracking); cy=((cy/n)-py)*0.0008*(0.4+s.tracking); }
-      const cym=this.cymatic(px,py,t,s);
-      const cenX=-px*(0.0004+s.place*0.0008), cenY=-py*(0.0004+s.place*0.0008);
-      const shearX=Math.sin(py*1.7+t*1.3)*frictionShear, shearY=Math.cos(px*1.5-t*1.1)*frictionShear;
-      this.vel[k] += (ax+cx+sx*0.00022 + cym.x + cenX + shearX)*arrivalBoost;
-      this.vel[k+1] += (ay+cy+sy*0.00022 + cym.y + cenY + shearY)*arrivalBoost;
-      this.vel[k+2] += Math.sin(t*0.21+i*0.11)*0.00035 + (Math.random()-0.5)*0.00008;
-      this.vel[k]*=silenceDrag; this.vel[k+1]*=silenceDrag; this.vel[k+2]*=0.992;
-
-      if (state.arrivalPhase===1){ this.vel[k] += -px*0.0012; this.vel[k+1] += -py*0.0012; }
-      else if (state.arrivalPhase===2){ this.vel[k]*=0.92; this.vel[k+1]*=0.92; }
-      else if (state.arrivalPhase===4){ this.vel[k] += Math.sin(i*0.37+t*0.9)*0.0005; this.vel[k+1] += Math.cos(i*0.31-t*1.1)*0.0005; }
-
-      this.positions[k]+=this.vel[k]; this.positions[k+1]+=this.vel[k+1]; this.positions[k+2]+=this.vel[k+2];
-      const r=Math.hypot(this.positions[k],this.positions[k+1]); if(r>CONFIG.fieldRadius){const f=(r-CONFIG.fieldRadius)*0.003; this.vel[k]-=(this.positions[k]/r)*f; this.vel[k+1]-=(this.positions[k+1]/r)*f;}
-      if(Math.abs(this.positions[k+2])>CONFIG.depth) this.vel[k+2]*=-0.8;
-    }
-
-    let c=0; const threshold=0.25 + s.tracking*0.3 + s.reception*0.22;
-    for(let i=0;i<this.activeCount && c<CONFIG.maxFilaments;i++){
-      const k=i*3; const near=this.neighbors(this.positions[k],this.positions[k+1]); let used=0;
-      for(const j of near){ if(j<=i || used>=CONFIG.maxFilamentsPerParticle || c>=CONFIG.maxFilaments) continue;
-        const q=j*3; const dx=this.positions[q]-this.positions[k],dy=this.positions[q+1]-this.positions[k+1];const d=Math.hypot(dx,dy); if(d>0.14&&d<threshold){
-          const rel=Math.abs(this.hues[i]-this.hues[j]); const resonance=1-Math.min(rel,1-rel)*2; if(resonance<0.35) continue;
-          const p=c*6,a=c*2; this.linePos[p]=this.positions[k];this.linePos[p+1]=this.positions[k+1];this.linePos[p+2]=this.positions[k+2];this.linePos[p+3]=this.positions[q];this.linePos[p+4]=this.positions[q+1];this.linePos[p+5]=this.positions[q+2];
-          const alpha=(1-d/threshold)*(0.45+resonance*0.4)*(0.6+s.reception*0.5); this.lineAlpha[a]=alpha; this.lineAlpha[a+1]=alpha; c++; used++;
-        }
-      }
-    }
-
-    this.lineGeom.setDrawRange(0,c*2); this.lineGeom.attributes.position.needsUpdate=true; this.lineGeom.attributes.aLineAlpha.needsUpdate=true;
-    this.points.geometry.attributes.position.needsUpdate=true;
-    this.points.material.uniforms.uTime.value=t; this.points.material.uniforms.uEnergy.value=energy;
-    this.points.material.uniforms.uFog.value=1-state.confidence;
-    this.points.material.uniforms.uArrivalBloom.value=state.arrivalPhase===3 ? 1 : (state.arrivalPhase===4 ? 0.35 : 0);
-    this.points.material.uniforms.uHeart.value=state.heartMemoryWave;
+  #tryEnableTesseraMode() {
     try {
-      this.renderer.render(this.scene,this.camera);
+      this.points.material = this.tesseraMaterial;
+      this.tesseraEnabled = true;
+      this.fallbackMode = false;
     } catch (error) {
-      console.error('[Tessera V2] shader/renderer error', error);
-      throw error;
+      console.error('[Tessera V2] tessera material enable failed; staying in safe mode.', error);
+      this.#enableSafeMode();
     }
   }
 
-  getDrawingBufferSizeString() {
-    const size = new THREE.Vector2();
-    this.renderer.getDrawingBufferSize(size);
-    return `${size.x}x${size.y}`;
+  resize() {
+    const width = Math.max(1, this.canvas.parentElement?.clientWidth || window.innerWidth || 1);
+    const height = Math.max(1, this.canvas.parentElement?.clientHeight || window.innerHeight || 1);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
   }
 
-  getPixelRatio() {
-    return this.renderer.getPixelRatio();
-  }
+  update(state) {
+    const dt = Math.min(this.clock.getDelta(), 0.033);
+    const t = this.clock.elapsedTime;
+    const s = state.current;
+    const energy = 0.25 + s.reach * 0.25 + s.tracking * 0.32 + s.friction * 0.18 + s.aliveness * 0.12;
 
-  getFrameDiagnostics() {
-    let sx = 0; let sy = 0; let sz = 0;
     for (let i = 0; i < this.activeCount; i++) {
       const k = i * 3;
-      sx += this.positions[k];
-      sy += this.positions[k + 1];
-      sz += this.positions[k + 2];
+      const ph = this.phase[i];
+      const baseX = this.base[k];
+      const baseY = this.base[k + 1];
+      const baseZ = this.base[k + 2];
+      const mur = Math.sin(t * (0.32 + s.tracking * 0.55) + ph) * (0.11 + s.tracking * 0.36);
+      const drift = Math.cos(t * 0.21 + i * 0.011) * s.drift * 0.32;
+      const friction = Math.sin(baseY * 1.7 + t * 1.5) * s.friction * 0.28;
+      const fold = Math.sin((baseX + baseY) * (0.6 + s.folding) + t * 0.38) * s.folding * 0.25;
+      const arrivalPull = state.arrivalPhase > 0 ? 1 - Math.min(1, state.arrivalTimer / 0.8) : 0;
+      this.positions[k] = baseX + (mur + drift + friction - baseX * arrivalPull * 0.15) * (1 + s.reach * 0.3);
+      this.positions[k + 1] = baseY + (Math.cos(t * 0.34 + ph) * (0.12 + s.reception * 0.25) + fold - baseY * arrivalPull * 0.15);
+      this.positions[k + 2] = baseZ + Math.sin(t * 0.27 + ph * 1.2) * (0.22 + s.inhabited_silence * 0.14);
     }
-    const n = Math.max(1, this.activeCount);
-    return {
-      avgX: sx / n,
-      avgY: sy / n,
-      avgZ: sz / n,
-      activeCount: this.activeCount,
-      uniforms: {
-        uTime: this.points.material.uniforms.uTime.value,
-        uEnergy: this.points.material.uniforms.uEnergy.value,
-        uFog: this.points.material.uniforms.uFog.value,
-        uArrivalBloom: this.points.material.uniforms.uArrivalBloom.value,
-        uHeart: this.points.material.uniforms.uHeart.value,
-        uDpr: this.points.material.uniforms.uDpr.value,
-        uViewportScale: this.points.material.uniforms.uViewportScale.value,
-      },
-    };
+
+    this.#updateFilaments(s, t);
+    this.pointsGeometry.attributes.position.needsUpdate = true;
+
+    if (!this.fallbackMode && this.tesseraEnabled) {
+      this.tesseraMaterial.uniforms.uTime.value = t;
+      this.tesseraMaterial.uniforms.uEnergy.value = energy;
+      this.tesseraMaterial.uniforms.uFog.value = 1 - state.confidence;
+      this.tesseraMaterial.uniforms.uArrival.value = state.arrivalPhase === 3 ? 1 : 0;
+      this.tesseraMaterial.uniforms.uHeart.value = state.heartMemoryWave;
+    } else {
+      this.safeMaterial.opacity = 0.62 + s.aliveness * 0.2 - (1 - state.confidence) * 0.12;
+      this.safeMaterial.size = 0.05 + s.reach * 0.02;
+    }
+
+    this.renderer.render(this.scene, this.camera);
   }
 
-  getRendererSizeString() {
-    const size = new THREE.Vector2();
-    this.renderer.getSize(size);
-    return `${size.x}x${size.y}`;
+  #updateFilaments(s, t) {
+    const filamentRate = 0.008 + s.tracking * 0.03 + s.reception * 0.02 + (s.arrival || 0) * 0.02;
+    let c = 0;
+    for (let i = 0; i < this.activeCount - 1 && c < CONFIG.maxFilaments; i += 3) {
+      if (Math.random() > filamentRate) continue;
+      const j = (i + 7 + Math.floor(Math.random() * 24)) % this.activeCount;
+      const a = i * 3; const b = j * 3;
+      const dx = this.positions[a] - this.positions[b];
+      const dy = this.positions[a + 1] - this.positions[b + 1];
+      const d = Math.hypot(dx, dy);
+      if (d < 0.15 || d > 0.9) continue;
+      const p = c * 6; const ap = c * 2;
+      this.linePos[p] = this.positions[a]; this.linePos[p + 1] = this.positions[a + 1]; this.linePos[p + 2] = this.positions[a + 2];
+      this.linePos[p + 3] = this.positions[b]; this.linePos[p + 4] = this.positions[b + 1]; this.linePos[p + 5] = this.positions[b + 2];
+      const alpha = (1 - d / 0.9) * (0.15 + s.tracking * 0.4 + s.reception * 0.22) * (0.65 + 0.35 * Math.sin(t + i));
+      this.lineAlpha[ap] = alpha;
+      this.lineAlpha[ap + 1] = alpha;
+      c++;
+    }
+    this.lineGeometry.setDrawRange(0, c * 2);
+    this.lineGeometry.attributes.position.needsUpdate = true;
+    this.lineGeometry.attributes.aLineAlpha.needsUpdate = true;
   }
+
+  isFallbackMode() { return this.fallbackMode; }
+  getMode() { return this.fallbackMode ? 'safe' : 'tessera'; }
+  getRendererSizeString() { const v = new THREE.Vector2(); this.renderer.getSize(v); return `${v.x}x${v.y}`; }
+  getDrawingBufferSizeString() { const v = new THREE.Vector2(); this.renderer.getDrawingBufferSize(v); return `${v.x}x${v.y}`; }
+  getPixelRatio() { return this.renderer.getPixelRatio(); }
 }
-
