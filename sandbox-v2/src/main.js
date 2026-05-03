@@ -3,90 +3,105 @@ import { TesseraState } from './tessera-state.js';
 import { presets } from './tessera-presets.js';
 
 console.log('[Tessera V2] main loaded');
-console.log(`[Tessera V2] THREE available: ${Boolean(window.THREE)}${window.THREE ? ` r${window.THREE.REVISION}` : ''}`);
 
 function boot() {
+  console.log('[Tessera V2] DOM ready');
+
   const canvas = document.getElementById('tessera-canvas');
   const controls = document.getElementById('dev-controls');
-  const controlButtons = Array.from(document.querySelectorAll('#dev-controls button[data-preset]'));
+  const buttons = Array.from(document.querySelectorAll('#dev-controls button[data-preset]'));
+  const hasTHREE = Boolean(window.THREE);
+
+  console.log(`[Tessera V2] THREE available: ${hasTHREE}${hasTHREE ? ` revision: ${window.THREE.REVISION}` : ''}`);
   console.log(`[Tessera V2] canvas found: ${Boolean(canvas)}`);
-  console.log(`[Tessera V2] controls found: ${controlButtons.length}`);
+  console.log(`[Tessera V2] controls found: ${Boolean(controls)}`);
+  console.log(`[Tessera V2] buttons found: ${buttons.length}`);
 
   const state = new TesseraState();
-  let engine = null;
-  let isAnimating = false;
   let currentPreset = 'rest';
+  let engine = null;
+  let running = false;
   let frameCount = 0;
 
+  const applyPreset = (presetName) => {
+    const preset = presets[presetName];
+    if (!preset) return;
+    currentPreset = presetName;
+    state.setPreset(preset);
+    if (controls) {
+      const active = controls.querySelector('.is-active');
+      if (active) active.classList.remove('is-active');
+      const btn = controls.querySelector(`button[data-preset="${presetName}"]`);
+      if (btn) btn.classList.add('is-active');
+    }
+    console.log(`[Tessera V2] preset selected: ${presetName}`);
+    console.log('[Tessera V2] target textures:', state.target);
+  };
+
+  if (controls) {
+    controls.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-preset]');
+      if (!button || !controls.contains(button)) return;
+      applyPreset(button.dataset.preset);
+    });
+    console.log('[Tessera V2] controls attached');
+  }
+
+  applyPreset('rest');
+
   try {
+    console.log('[Tessera V2] engine init start');
     engine = new TesseraEngine(canvas);
-    console.log('[Tessera V2] engine initialized');
+    console.log('[Tessera V2] safe renderer visible');
+    if (engine.tesseraEnabled) {
+      console.log('[Tessera V2] tessera renderer enabled');
+    }
     console.log(`[Tessera V2] particle count: ${engine.count}`);
-    console.log(`[Tessera V2] active particle count: ${engine.activeCount}`);
     console.log(`[Tessera V2] renderer CSS size: ${engine.getRendererSizeString()}`);
     console.log(`[Tessera V2] drawing buffer size: ${engine.getDrawingBufferSizeString()}`);
     console.log(`[Tessera V2] pixel ratio: ${engine.getPixelRatio()}`);
-
-    const applyPreset = (presetName) => {
-      const preset = presets[presetName];
-      if (!preset) return;
-      currentPreset = presetName;
-      state.setPreset(preset);
-      console.log(`[Tessera V2] preset selected: ${presetName}`);
-      console.log('[Tessera V2] target textures:', state.target);
-    };
-
-    controlButtons.forEach((btn) => {
-      btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
-    });
-
-    if (controls) {
-      controls.addEventListener('click', (event) => {
-        const targetButton = event.target.closest('button[data-preset]');
-        if (!targetButton || !controls.contains(targetButton)) return;
-        applyPreset(targetButton.dataset.preset);
-      });
-    }
-
-    applyPreset('rest');
-
-    window.tesseraDebug = () => ({
-      rendererSize: engine.getRendererSizeString(),
-      drawingBufferSize: engine.getDrawingBufferSizeString(),
-      particleCount: engine.count,
-      activeCount: engine.activeCount,
-      currentTextures: { ...state.current },
-      targetTextures: { ...state.target },
-      confidence: state.confidence,
-      currentPreset,
-      animationRunning: isAnimating,
-    });
-
-    function frame() {
-      isAnimating = true;
-      frameCount += 1;
-      state.tick(1 / 60);
-      engine.update(state);
-
-      if (frameCount <= 5) {
-        const d = engine.getFrameDiagnostics();
-        console.log(`[Tessera V2] frame ${frameCount} avgPos=(${d.avgX.toFixed(3)}, ${d.avgY.toFixed(3)}, ${d.avgZ.toFixed(3)}) active=${d.activeCount}`);
-        console.log('[Tessera V2] uniforms:', d.uniforms);
-        console.log('[Tessera V2] Rest nonzero check:', {
-          place: state.current.place,
-          aliveness: state.current.aliveness,
-          confidence: state.confidence,
-        });
-      }
-
-      requestAnimationFrame(frame);
-    }
-
-    console.log('[Tessera V2] animation loop started');
-    frame();
   } catch (error) {
-    console.error('[Tessera V2] initialization failed', error);
+    console.error('[Tessera V2] engine initialization failed; controls remain active.', error);
   }
+
+  function animate() {
+    if (!engine) return;
+    running = true;
+    frameCount += 1;
+    state.tick(1 / 60);
+    try {
+      engine.update(state);
+    } catch (error) {
+      console.error('[Tessera V2] runtime renderer error', error);
+    }
+    if (frameCount <= 3) {
+      console.log(`[Tessera V2] frame ${frameCount} mode=${engine.getMode()}`);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  if (engine) {
+    console.log('[Tessera V2] animation loop started');
+    animate();
+  }
+
+  window.tesseraDebug = function tesseraDebug() {
+    return {
+      engineExists: Boolean(engine),
+      running,
+      frameCount,
+      currentPreset,
+      targetTextures: { ...state.target },
+      currentTextures: { ...state.current },
+      confidence: state.confidence,
+      rendererSize: engine ? engine.getRendererSizeString() : null,
+      drawingBufferSize: engine ? engine.getDrawingBufferSizeString() : null,
+      pixelRatio: engine ? engine.getPixelRatio() : null,
+      particleCount: engine ? engine.count : 0,
+      activeParticleCount: engine ? engine.activeCount : 0,
+      fallbackMode: engine ? engine.isFallbackMode() : true,
+    };
+  };
 }
 
 if (document.readyState === 'loading') {
