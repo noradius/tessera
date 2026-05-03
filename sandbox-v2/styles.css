@@ -44,3 +44,8 @@ html, body {
   padding: 4px 10px;
   font-size: 11px;
 }
+
+#tessera-canvas { position: absolute; inset: 0; z-index: 0; }
+#field-shell::after { z-index: 1; }
+#dev-controls { z-index: 3; pointer-events: auto; }
+#dev-controls button { pointer-events: auto; cursor: pointer; }

@@ -1,7 +1,7 @@
 const T = (textures, confidence = 0.7) => ({ textures, confidence });
 
 export const presets = {
-  rest: T({ place: 0.35, aliveness: 0.2 }, 0.78),
+  rest: T({ place: 0.46, aliveness: 0.38, drift: 0.18, response: 0.2 }, 0.8),
   reach: T({ reach: 0.7, drift: 0.25, response: 0.3 }),
   tracking: T({ tracking: 0.8, place: 0.4, response: 0.35 }),
   drift: T({ drift: 0.75, reception: 0.2, aliveness: 0.25 }),
