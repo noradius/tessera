@@ -1,5 +1,5 @@
 import { presets } from './tessera-presets.js';
-export const textureKeys=['reach','tracking','drift','folding','reception','friction','inhabited_silence','place','aliveness','response','arrival','heart_memory','nowness'];
+export const textureKeys=['reach','tracking','drift','folding','reception','friction','inhabited_silence','place','aliveness','response','arrival','heart_memory','nowness','mixed_weather'];
 export class TesseraState {
  constructor(){this.target=Object.fromEntries(textureKeys.map(k=>[k,0]));this.current=Object.fromEntries(textureKeys.map(k=>[k,0]));this.confidenceTarget=0.7;this.confidence=0.7;this.activePreset='rest';this.arrivalPhase=0;this.arrivalTimer=0;this.heartMemoryWave=0;this.heartMemoryTimer=0;}
  setTextures(t={},confidence){this.target={...this.target,...t};if(typeof confidence==='number')this.confidenceTarget=confidence;}
