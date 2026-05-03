@@ -1,0 +1,1 @@
+const input=document.getElementById('apiKey');chrome.storage.local.get(['tesseraApiKey']).then(v=>{if(v.tesseraApiKey)input.value=v.tesseraApiKey;});document.getElementById('save').addEventListener('click',()=>chrome.storage.local.set({tesseraApiKey:input.value||''}));

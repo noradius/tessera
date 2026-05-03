@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Tessera V2 Bridge",
+  "version": "0.1.0",
+  "description": "Downstream bridge for Tessera V2 visual engine integration.",
+  "permissions": ["storage"],
+  "host_permissions": [],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["content.js"], "css": ["tessera.css"] }],
+  "options_page": "options.html"
+}
