@@ -1,0 +1,1 @@
+export class EventTimeline{constructor(){this.active=[];} trigger(name,d=8){this.active.push({name,t:0,d});} tick(dt){this.active=this.active.filter(e=>(e.t+=dt)<e.d);} value(name){const e=this.active.find(x=>x.name===name);if(!e)return 0;const p=e.t/e.d;return p<.2?p/.2:p<.6?1:(1-p)/.4;} debug(){return this.active.map(e=>({name:e.name,t:+e.t.toFixed(2),d:e.d}));}}
