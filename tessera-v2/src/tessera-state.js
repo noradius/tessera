@@ -1,0 +1,12 @@
+import { presets } from './tessera-presets.js';
+export const textureKeys=['reach','tracking','drift','folding','reception','friction','inhabited_silence','place','aliveness','response','arrival','heart_memory','nowness'];
+export class TesseraState {
+ constructor(){this.target=Object.fromEntries(textureKeys.map(k=>[k,0]));this.current=Object.fromEntries(textureKeys.map(k=>[k,0]));this.confidenceTarget=0.7;this.confidence=0.7;this.activePreset='rest';this.arrivalPhase=0;this.arrivalTimer=0;this.heartMemoryWave=0;this.heartMemoryTimer=0;}
+ setTextures(t={},confidence){this.target={...this.target,...t};if(typeof confidence==='number')this.confidenceTarget=confidence;}
+ setPreset(name){const p=presets[name]; if(!p) return; this.activePreset=name; this.setTextures(p.textures,p.confidence);}
+ triggerEvent(name){ if(name==='arrival'){this.target.arrival=0.98;} if(name==='heart_memory'){this.target.heart_memory=0.9;} }
+ tick(dt){for(const k of textureKeys){const hl=['place','aliveness','response'].includes(k)?4.8:(['arrival','heart_memory'].includes(k)?1.2:2.4);const l=Math.pow(0.5,dt/hl);this.current[k]=this.current[k]*l+(this.target[k]??0)*(1-l);}const cl=Math.pow(0.5,dt/3.2);this.confidence=this.confidence*cl+this.confidenceTarget*(1-cl);const dn=Math.min(1,this.current.tracking*0.45+this.current.reception*0.35+this.current.drift*0.2);this.current.nowness=Math.max(this.current.nowness*(1-dt*0.3),dn*0.92);
+ if(this.current.arrival>0.72&&this.arrivalPhase===0){this.arrivalPhase=1;this.arrivalTimer=0;} if(this.arrivalPhase){this.arrivalTimer+=dt; if(this.arrivalPhase===1&&this.arrivalTimer>0.56){this.arrivalPhase=2;this.arrivalTimer=0;} else if(this.arrivalPhase===2&&this.arrivalTimer>0.32){this.arrivalPhase=3;this.arrivalTimer=0;} else if(this.arrivalPhase===3&&this.arrivalTimer>0.84){this.arrivalPhase=4;this.arrivalTimer=0;} else if(this.arrivalPhase===4&&this.arrivalTimer>2.4){this.arrivalPhase=0;this.arrivalTimer=0;this.target.arrival*=0.3;}}
+ if(this.current.heart_memory>0.55&&this.heartMemoryWave<=0.001){this.heartMemoryWave=1;this.heartMemoryTimer=0;} if(this.heartMemoryWave>0){this.heartMemoryTimer+=dt;this.heartMemoryWave=Math.max(0,1-this.heartMemoryTimer/3.3);} }
+ getDebugState(){return {currentPreset:this.activePreset,currentTextures:{...this.current},targetTextures:{...this.target},confidence:this.confidence,arrivalPhase:this.arrivalPhase,heartMemoryWave:this.heartMemoryWave};}
+}

@@ -1,0 +1,8 @@
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background: radial-gradient(circle at 50% 35%, #0b1325 0%, #04070f 55%, #02040a 100%); color:#d7e3ff; font-family: Inter, system-ui, sans-serif; }
+#tessera-canvas { position:fixed; inset:0; width:100vw; height:100vh; display:block; z-index:1; pointer-events:none; }
+.vignette { position:fixed; inset:0; pointer-events:none; z-index:2; background: radial-gradient(ellipse at center, rgba(8,16,30,0) 35%, rgba(2,5,12,0.32) 72%, rgba(0,0,0,0.75) 100%); }
+.dev-controls { position:fixed; left:12px; top:12px; z-index:10; display:flex; flex-wrap:wrap; gap:6px; max-width:min(900px,92vw); pointer-events:auto; }
+.dev-controls button { background:rgba(8,14,24,0.82); border:1px solid rgba(125,153,220,0.34); color:#d2def7; padding:6px 9px; border-radius:5px; cursor:pointer; font-size:12px; }
+.dev-controls button.is-active{ border-color:rgba(203,223,255,0.95); color:#f6fbff; background:rgba(22,34,56,0.9); }
+.perf-monitor { position:fixed; right:10px; top:10px; z-index:11; pointer-events:none; white-space:pre; font:11px/1.35 ui-monospace, Menlo, monospace; padding:8px; border-radius:4px; border:1px solid rgba(110,150,220,0.34); background:rgba(3,7,13,0.68); }
+.hidden { display:none; }
